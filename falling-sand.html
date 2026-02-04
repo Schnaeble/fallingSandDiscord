@@ -295,9 +295,8 @@
             // Listen for draw events from other players
             discordSdk.subscribe("ACTIVITY_LAYOUT_MODE_UPDATE", () => {});
             
-            // Set up custom message handling using localStorage as a shared state
-            // This is a workaround - in production, use Discord's proper RPC or a backend
-            setInterval(checkForRemoteUpdates, 100);
+            // Connect to WebSocket server for real-time sync
+            connectWebSocket();
         }
 
         let lastDrawBroadcast = Date.now();
@@ -364,47 +363,67 @@
             });
         }
 
-        // Simulated message passing using localStorage (for demo purposes)
-        // In production, use Discord RPC or a proper backend with WebSockets
-        let messageQueue = [];
-        
+        // WebSocket connection for real-time multiplayer
+        let ws = null;
+        let wsConnected = false;
+
+        function connectWebSocket() {
+            const backendUrl = (typeof CONFIG !== 'undefined' && CONFIG.BACKEND_URL) || '';
+            if (!backendUrl) {
+                console.log('No backend URL configured, running in standalone mode');
+                return;
+            }
+
+            // Convert HTTP URL to WebSocket URL
+            const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = () => {
+                    console.log('WebSocket connected!');
+                    wsConnected = true;
+                    // Join a room (use Discord channel ID if available, otherwise default)
+                    ws.send(JSON.stringify({
+                        type: 'JOIN',
+                        room: 'default'
+                    }));
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        handleRemoteMessage(message);
+                    } catch (error) {
+                        console.error('WebSocket message error:', error);
+                    }
+                };
+                
+                ws.onclose = () => {
+                    console.log('WebSocket disconnected');
+                    wsConnected = false;
+                    // Try to reconnect after 3 seconds
+                    setTimeout(connectWebSocket, 3000);
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                };
+            } catch (error) {
+                console.error('Failed to connect WebSocket:', error);
+            }
+        }
+
         function sendMessage(message) {
-            try {
-                const messages = JSON.parse(localStorage.getItem('discord_activity_messages') || '[]');
-                messages.push({
-                    ...message,
-                    timestamp: Date.now(),
-                    id: Math.random().toString(36)
-                });
-                // Keep only last 100 messages
-                if (messages.length > 100) messages.shift();
-                localStorage.setItem('discord_activity_messages', JSON.stringify(messages));
-            } catch (e) {
-                console.error('Message send failed:', e);
+            if (ws && wsConnected) {
+                try {
+                    ws.send(JSON.stringify(message));
+                } catch (error) {
+                    console.error('Failed to send message:', error);
+                }
             }
         }
-
-        let lastCheckedMessageId = null;
         
-        function checkForRemoteUpdates() {
-            try {
-                const messages = JSON.parse(localStorage.getItem('discord_activity_messages') || '[]');
-                
-                for (const message of messages) {
-                    if (message.userId === myUserId) continue;
-                    if (message.id === lastCheckedMessageId) break;
-                    
-                    handleRemoteMessage(message);
-                }
-                
-                if (messages.length > 0) {
-                    lastCheckedMessageId = messages[messages.length - 1].id;
-                }
-            } catch (e) {
-                console.error('Check messages failed:', e);
-            }
-        }
-
         function handleRemoteMessage(message) {
             switch (message.type) {
                 case 'DRAW_BATCH':
@@ -912,20 +931,30 @@
 
                     // Oil burning creates gas/smoke
                     if (cell.type === 'oil') {
+                        let shouldBurn = false;
                         for (let dy = -1; dy <= 1; dy++) {
                             for (let dx = -1; dx <= 1; dx++) {
                                 const ny = y + dy, nx = x + dx;
                                 if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
-                                    if (grid[ny][nx].type === 'fire' && Math.random() > 0.8) {
-                                        // Oil burns into fire and creates gas
-                                        newGrid[y][x] = { type: 'fire', updated: true, lifetime: 50, temp: 900 };
-                                        if (y > 0 && newGrid[y - 1][x].type === 'empty' && Math.random() > 0.5) {
-                                            newGrid[y - 1][x] = { type: 'gas', updated: true, lifetime: 0, temp: 200 };
-                                        }
+                                    const neighbor = grid[ny][nx];
+                                    // Oil catches fire from fire or lava
+                                    if ((neighbor.type === 'fire' || neighbor.type === 'lava') && Math.random() > 0.7) {
+                                        shouldBurn = true;
                                         break;
                                     }
                                 }
                             }
+                            if (shouldBurn) break;
+                        }
+                        
+                        if (shouldBurn) {
+                            // Oil burns into fire and creates gas
+                            newGrid[y][x] = { type: 'fire', updated: true, lifetime: 60, temp: 900 };
+                            // Create smoke/gas above
+                            if (y > 0 && newGrid[y - 1][x].type === 'empty' && Math.random() > 0.3) {
+                                newGrid[y - 1][x] = { type: 'gas', updated: true, lifetime: 0, temp: 200 };
+                            }
+                            continue;
                         }
                     }
                     
@@ -1148,6 +1177,8 @@
             console.log('Running in local/standalone mode:', err);
             isHost = true;
             updatePlayerCount();
+            // Still connect WebSocket for multiplayer without Discord
+            connectWebSocket();
         });
         
         console.log('Starting game loop...');
