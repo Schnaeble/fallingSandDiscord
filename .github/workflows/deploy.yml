@@ -1,0 +1,37 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Create config.js from secrets
+        run: |
+          echo "const CONFIG = {" > config.js
+          echo "  DISCORD_CLIENT_ID: '${{ secrets.DISCORD_CLIENT_ID }}'," >> config.js
+          echo "  BACKEND_URL: '${{ secrets.BACKEND_URL }}'" >> config.js
+          echo "};" >> config.js
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: '.'
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
