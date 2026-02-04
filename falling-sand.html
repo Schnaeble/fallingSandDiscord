@@ -209,6 +209,7 @@
         </div>
     </div>
 
+    <script src="config.js" onerror="console.warn('config.js not found - running in standalone mode')"></script>
     <script src="https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@1.2.0/output/discord.js"></script>
     <script>
         // Discord SDK setup
@@ -220,13 +221,22 @@
 
         // Initialize Discord SDK
         async function initDiscord() {
-            discordSdk = new window.DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID || 'your_client_id');
+            // Use CONFIG from config.js, fallback to placeholder
+            const clientId = (typeof CONFIG !== 'undefined' && CONFIG.DISCORD_CLIENT_ID) || 'your_client_id';
+            const backendUrl = (typeof CONFIG !== 'undefined' && CONFIG.BACKEND_URL) || '';
+            
+            if (clientId === 'your_client_id' || clientId === 'YOUR_CLIENT_ID_HERE') {
+                console.warn('Discord Client ID not configured. Copy config.example.js to config.js and add your credentials.');
+                throw new Error('Client ID not configured');
+            }
+            
+            discordSdk = new window.DiscordSDK(clientId);
             
             await discordSdk.ready();
             
             // Authenticate
             const { code } = await discordSdk.commands.authorize({
-                client_id: import.meta.env.VITE_DISCORD_CLIENT_ID || 'your_client_id',
+                client_id: clientId,
                 response_type: "code",
                 state: "",
                 prompt: "none",
@@ -234,7 +244,8 @@
             });
 
             // Get access token
-            const response = await fetch("/.proxy/api/token", {
+            const tokenUrl = backendUrl ? `${backendUrl}/.proxy/api/token` : "/.proxy/api/token";
+            const response = await fetch(tokenUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ code })
@@ -1128,16 +1139,20 @@
         }
 
         // Initialize and start
+        console.log('Starting Falling Sand Game...');
         initGrid();
+        console.log('Grid initialized');
         
         // Try to initialize Discord SDK, fallback to local mode
         initDiscord().catch(err => {
-            console.log('Running in local mode:', err);
+            console.log('Running in local/standalone mode:', err);
             isHost = true;
             updatePlayerCount();
         });
         
+        console.log('Starting game loop...');
         gameLoop();
+        console.log('Game should be interactive now!');
 
         // Flush any remaining draw buffer periodically
         setInterval(() => {
