@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Falling Sand</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            max-width: 90vw;
+        }
+
+        #info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            color: white;
+        }
+
+        #player-count {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        #toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .material-btn {
+            padding: 10px 16px;
+            border: 3px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .material-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .material-btn.active {
+            border-color: #333;
+            transform: scale(1.05);
+        }
+
+        .material-sand { background: #f4a460; color: white; }
+        .material-water { background: #4a90e2; color: white; }
+        .material-stone { background: #708090; color: white; }
+        .material-wall { background: #404040; color: white; }
+        .material-fire { background: linear-gradient(45deg, #ff6b6b, #ffd93d); color: white; }
+        .material-wood { background: #8b4513; color: white; }
+        .material-oil { background: #2c1810; color: white; }
+        .material-gas { background: #c8c8ff; color: #333; }
+        .material-salt { background: #f0f0f0; color: #333; }
+        .material-saltwater { background: #5ba3d0; color: white; }
+        .material-lava { background: linear-gradient(45deg, #ff4500, #ffa500); color: white; }
+        .material-acid { background: #9acd32; color: white; }
+        .material-steam { background: #e0e0e0; color: #333; }
+        .material-ice { background: #add8e6; color: #333; }
+        .material-plant { background: #4caf50; color: white; }
+        .material-seed { background: #7cb342; color: white; }
+        .material-gunpowder { background: #3a3a3a; color: white; }
+        .material-metal { background: #b0b0b0; color: white; }
+        .material-glass { background: #e6f3ff; color: #333; }
+        .material-dirt { background: #654321; color: white; }
+        .material-mud { background: #4a3c28; color: white; }
+        .material-concrete { background: #95a5a6; color: white; }
+        .material-erase { background: white; color: #333; border: 2px solid #ddd; }
+
+        #controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .control-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        #canvas-container {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+            background: #87ceeb;
+        }
+
+        #canvas {
+            display: block;
+            cursor: crosshair;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        #brush-size {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        #brush-size input {
+            flex: 1;
+        }
+
+        .size-label {
+            font-weight: 600;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="info-bar">
+            <div id="player-count">Players: 1</div>
+            <div style="font-size: 18px; font-weight: bold;">🏖️ Multiplayer Falling Sand</div>
+            <div style="font-size: 12px;">Draw & Watch!</div>
+        </div>
+
+        <div id="toolbar">
+            <button class="material-btn material-sand active" data-material="sand">Sand</button>
+            <button class="material-btn material-water" data-material="water">Water</button>
+            <button class="material-btn material-stone" data-material="stone">Stone</button>
+            <button class="material-btn material-wall" data-material="wall">Wall</button>
+            <button class="material-btn material-fire" data-material="fire">Fire</button>
+            <button class="material-btn material-wood" data-material="wood">Wood</button>
+            <button class="material-btn material-oil" data-material="oil">Oil</button>
+            <button class="material-btn material-gas" data-material="gas">Gas</button>
+            <button class="material-btn material-salt" data-material="salt">Salt</button>
+            <button class="material-btn material-saltwater" data-material="saltwater">Salt Water</button>
+            <button class="material-btn material-lava" data-material="lava">Lava</button>
+            <button class="material-btn material-acid" data-material="acid">Acid</button>
+            <button class="material-btn material-steam" data-material="steam">Steam</button>
+            <button class="material-btn material-ice" data-material="ice">Ice</button>
+            <button class="material-btn material-plant" data-material="plant">Plant</button>
+            <button class="material-btn material-seed" data-material="seed">Seed</button>
+            <button class="material-btn material-gunpowder" data-material="gunpowder">Gunpowder</button>
+            <button class="material-btn material-metal" data-material="metal">Metal</button>
+            <button class="material-btn material-glass" data-material="glass">Glass</button>
+            <button class="material-btn material-dirt" data-material="dirt">Dirt</button>
+            <button class="material-btn material-mud" data-material="mud">Mud</button>
+            <button class="material-btn material-concrete" data-material="concrete">Concrete</button>
+            <button class="material-btn material-erase" data-material="empty">Erase</button>
+        </div>
+
+        <div id="brush-size">
+            <span class="size-label">Brush Size:</span>
+            <input type="range" id="size-slider" min="1" max="10" value="3">
+            <span class="size-label" id="size-value">3</span>
+        </div>
+
+        <div id="controls">
+            <button class="control-btn" id="clear-btn">Clear Canvas</button>
+            <button class="control-btn" id="pause-btn">Pause</button>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="canvas" width="400" height="300"></canvas>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@1.2.0/output/discord.js"></script>
+    <script>
+        // Discord SDK setup
+        let discordSdk;
+        let auth;
+        let participants = new Map();
+        let isHost = false;
+        let myUserId = null;
+
+        // Initialize Discord SDK
+        async function initDiscord() {
+            discordSdk = new window.DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID || 'your_client_id');
+            
+            await discordSdk.ready();
+            
+            // Authenticate
+            const { code } = await discordSdk.commands.authorize({
+                client_id: import.meta.env.VITE_DISCORD_CLIENT_ID || 'your_client_id',
+                response_type: "code",
+                state: "",
+                prompt: "none",
+                scope: ["identify", "guilds"]
+            });
+
+            // Get access token
+            const response = await fetch("/.proxy/api/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code })
+            });
+            
+            const { access_token } = await response.json();
+            auth = await discordSdk.commands.authenticate({ access_token });
+            
+            myUserId = auth.user.id;
+
+            // Subscribe to participant updates
+            await discordSdk.subscribe("ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE", ({ participants: p }) => {
+                participants.clear();
+                p.forEach(participant => {
+                    participants.set(participant.id, participant);
+                });
+                updatePlayerCount();
+            });
+
+            // Set up message handlers for grid synchronization
+            setupMessageHandlers();
+            
+            // Determine if we're the host (first person)
+            const instanceParticipants = await discordSdk.commands.getInstanceConnectedParticipants();
+            if (instanceParticipants.participants.length > 0) {
+                participants.clear();
+                instanceParticipants.participants.forEach(participant => {
+                    participants.set(participant.id, participant);
+                });
+                
+                // Host is the participant with the lowest ID (lexicographically)
+                const sortedIds = Array.from(participants.keys()).sort();
+                isHost = sortedIds[0] === myUserId;
+                
+                if (!isHost) {
+                    // Request full grid state from host
+                    requestGridState();
+                }
+            } else {
+                isHost = true;
+            }
+            
+            updatePlayerCount();
+        }
+
+        function setupMessageHandlers() {
+            // Listen for draw events from other players
+            discordSdk.subscribe("ACTIVITY_LAYOUT_MODE_UPDATE", () => {});
+            
+            // Set up custom message handling using localStorage as a shared state
+            // This is a workaround - in production, use Discord's proper RPC or a backend
+            setInterval(checkForRemoteUpdates, 100);
+        }
+
+        let lastDrawBroadcast = Date.now();
+        let drawBuffer = [];
+
+        function broadcastDraw(x, y, material) {
+            if (!discordSdk) return;
+            
+            drawBuffer.push({ x, y, material, userId: myUserId });
+            
+            // Batch draws and send every 50ms to reduce message spam
+            if (Date.now() - lastDrawBroadcast > 50) {
+                if (drawBuffer.length > 0) {
+                    sendMessage({
+                        type: 'DRAW_BATCH',
+                        draws: drawBuffer,
+                        userId: myUserId
+                    });
+                    drawBuffer = [];
+                    lastDrawBroadcast = Date.now();
+                }
+            }
+        }
+
+        function broadcastClear() {
+            if (!discordSdk) return;
+            sendMessage({
+                type: 'CLEAR',
+                userId: myUserId
+            });
+        }
+
+        function requestGridState() {
+            if (!discordSdk) return;
+            sendMessage({
+                type: 'REQUEST_STATE',
+                userId: myUserId
+            });
+        }
+
+        function sendGridState(requesterId) {
+            if (!discordSdk || !isHost) return;
+            
+            // Compress grid by only sending non-empty cells
+            const compressedGrid = [];
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    if (grid[y][x].type !== 'empty') {
+                        compressedGrid.push({
+                            x, y,
+                            type: grid[y][x].type,
+                            lifetime: grid[y][x].lifetime,
+                            temp: grid[y][x].temp
+                        });
+                    }
+                }
+            }
+            
+            sendMessage({
+                type: 'GRID_STATE',
+                grid: compressedGrid,
+                userId: myUserId,
+                targetUser: requesterId
+            });
+        }
+
+        // Simulated message passing using localStorage (for demo purposes)
+        // In production, use Discord RPC or a proper backend with WebSockets
+        let messageQueue = [];
+        
+        function sendMessage(message) {
+            try {
+                const messages = JSON.parse(localStorage.getItem('discord_activity_messages') || '[]');
+                messages.push({
+                    ...message,
+                    timestamp: Date.now(),
+                    id: Math.random().toString(36)
+                });
+                // Keep only last 100 messages
+                if (messages.length > 100) messages.shift();
+                localStorage.setItem('discord_activity_messages', JSON.stringify(messages));
+            } catch (e) {
+                console.error('Message send failed:', e);
+            }
+        }
+
+        let lastCheckedMessageId = null;
+        
+        function checkForRemoteUpdates() {
+            try {
+                const messages = JSON.parse(localStorage.getItem('discord_activity_messages') || '[]');
+                
+                for (const message of messages) {
+                    if (message.userId === myUserId) continue;
+                    if (message.id === lastCheckedMessageId) break;
+                    
+                    handleRemoteMessage(message);
+                }
+                
+                if (messages.length > 0) {
+                    lastCheckedMessageId = messages[messages.length - 1].id;
+                }
+            } catch (e) {
+                console.error('Check messages failed:', e);
+            }
+        }
+
+        function handleRemoteMessage(message) {
+            switch (message.type) {
+                case 'DRAW_BATCH':
+                    message.draws.forEach(draw => {
+                        if (draw.x >= 0 && draw.x < GRID_WIDTH && draw.y >= 0 && draw.y < GRID_HEIGHT) {
+                            grid[draw.y][draw.x] = {
+                                type: draw.material,
+                                updated: true,
+                                lifetime: MATERIALS[draw.material].lifetime || 0,
+                                temp: grid[draw.y][draw.x].temp || 20
+                            };
+                        }
+                    });
+                    break;
+                    
+                case 'CLEAR':
+                    initGrid();
+                    break;
+                    
+                case 'REQUEST_STATE':
+                    if (isHost) {
+                        sendGridState(message.userId);
+                    }
+                    break;
+                    
+                case 'GRID_STATE':
+                    if (message.targetUser === myUserId || !message.targetUser) {
+                        // Clear and load state
+                        initGrid();
+                        message.grid.forEach(cell => {
+                            if (cell.x >= 0 && cell.x < GRID_WIDTH && cell.y >= 0 && cell.y < GRID_HEIGHT) {
+                                grid[cell.y][cell.x] = {
+                                    type: cell.type,
+                                    updated: false,
+                                    lifetime: cell.lifetime || 0,
+                                    temp: cell.temp || 20
+                                };
+                            }
+                        });
+                    }
+                    break;
+            }
+        }
+
+        function updatePlayerCount() {
+            const count = participants.size || 1;
+            document.getElementById('player-count').textContent = `Players: ${count}`;
+        }
+
+        // Grid configuration
+        const CELL_SIZE = 2;
+        const GRID_WIDTH = 200;
+        const GRID_HEIGHT = 150;
+        
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = GRID_WIDTH * CELL_SIZE;
+        canvas.height = GRID_HEIGHT * CELL_SIZE;
+
+        // Material types with properties
+        const MATERIALS = {
+            empty: { color: [135, 206, 235], density: 0, state: 'gas' },
+            sand: { color: [244, 164, 96], density: 2, state: 'powder' },
+            water: { color: [74, 144, 226], density: 1, state: 'liquid', evaporates: true },
+            stone: { color: [112, 128, 144], density: 3, state: 'solid' },
+            wall: { color: [64, 64, 64], density: 5, state: 'solid', indestructible: true },
+            fire: { color: [255, 107, 107], density: -1, state: 'energy', lifetime: 60 },
+            wood: { color: [139, 69, 19], density: 3, state: 'solid', flammable: true },
+            oil: { color: [44, 24, 16], density: 0.8, state: 'liquid', flammable: true },
+            gas: { color: [200, 200, 255], density: -0.5, state: 'gas', flammable: true },
+            salt: { color: [240, 240, 240], density: 2.2, state: 'powder', dissolves: true },
+            saltwater: { color: [91, 163, 208], density: 1.1, state: 'liquid' },
+            lava: { color: [255, 69, 0], density: 2.5, state: 'liquid', ignites: true, melts: true },
+            acid: { color: [154, 205, 50], density: 1.2, state: 'liquid', corrosive: true },
+            steam: { color: [224, 224, 224], density: -0.8, state: 'gas', condenses: true },
+            ice: { color: [173, 216, 230], density: 0.9, state: 'solid', melts: true },
+            plant: { color: [76, 175, 80], density: 2, state: 'solid', grows: true, flammable: true },
+            seed: { color: [124, 179, 66], density: 2, state: 'powder', grows: true },
+            gunpowder: { color: [58, 58, 58], density: 1.8, state: 'powder', explosive: true },
+            metal: { color: [176, 176, 176], density: 4, state: 'solid', conducts: true },
+            glass: { color: [230, 243, 255], density: 2.5, state: 'solid', transparent: true },
+            dirt: { color: [101, 67, 33], density: 1.5, state: 'powder' },
+            mud: { color: [74, 60, 40], density: 1.3, state: 'liquid' },
+            concrete: { color: [149, 165, 166], density: 2.4, state: 'solid', hardens: true }
+        };
+
+        // Game state
+        let grid = [];
+        let selectedMaterial = 'sand';
+        let brushSize = 3;
+        let isDrawing = false;
+        let isPaused = false;
+
+        // Initialize grid
+        function initGrid() {
+            grid = Array(GRID_HEIGHT).fill(null).map(() => 
+                Array(GRID_WIDTH).fill(null).map(() => ({ 
+                    type: 'empty', 
+                    updated: false,
+                    lifetime: 0,
+                    temp: 20 // temperature
+                }))
+            );
+        }
+
+        // Drawing functions
+        function setCell(x, y, material) {
+            if (x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT) {
+                grid[y][x] = { 
+                    type: material, 
+                    updated: true,
+                    lifetime: MATERIALS[material].lifetime || 0,
+                    temp: grid[y][x].temp || 20
+                };
+                broadcastDraw(x, y, material);
+            }
+        }
+
+        function drawCircle(centerX, centerY, radius, material) {
+            for (let y = -radius; y <= radius; y++) {
+                for (let x = -radius; x <= radius; x++) {
+                    if (x * x + y * y <= radius * radius) {
+                        setCell(centerX + x, centerY + y, material);
+                    }
+                }
+            }
+        }
+
+        // Physics simulation
+        function updatePhysics() {
+            if (isPaused) return;
+
+            // Create new grid for updates
+            const newGrid = grid.map(row => row.map(cell => ({ ...cell, updated: false })));
+
+            // Process from bottom to top
+            for (let y = GRID_HEIGHT - 1; y >= 0; y--) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const cell = grid[y][x];
+                    if (cell.updated) continue;
+
+                    const material = MATERIALS[cell.type];
+                    
+                    if (cell.type === 'empty') continue;
+
+                    // Decrement lifetime for temporary materials
+                    if (material.lifetime && cell.lifetime > 0) {
+                        cell.lifetime--;
+                        if (cell.lifetime <= 0) {
+                            newGrid[y][x] = { type: 'empty', updated: true, lifetime: 0, temp: cell.temp };
+                            continue;
+                        }
+                    }
+
+                    // Fire behavior
+                    if (cell.type === 'fire') {
+                        if (Math.random() > 0.3) {
+                            // Fire rises
+                            if (y > 0 && newGrid[y - 1][x].type === 'empty') {
+                                newGrid[y - 1][x] = { type: 'fire', updated: true, lifetime: cell.lifetime, temp: 800 };
+                                newGrid[y][x] = { type: 'empty', updated: true, lifetime: 0, temp: cell.temp };
+                            } else {
+                                newGrid[y][x] = { ...cell, updated: true };
+                            }
+                            
+                            // Fire spreads to flammable materials and creates steam from water
+                            for (let dy = -1; dy <= 1; dy++) {
+                                for (let dx = -1; dx <= 1; dx++) {
+                                    const ny = y + dy, nx = x + dx;
+                                    if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
+                                        const neighbor = grid[ny][nx];
+                                        const neighborMat = MATERIALS[neighbor.type];
+                                        
+                                        if (neighborMat.flammable && Math.random() > 0.9) {
+                                            newGrid[ny][nx] = { type: 'fire', updated: true, lifetime: 40, temp: 800 };
+                                        } else if (neighbor.type === 'water' && Math.random() > 0.8) {
+                                            newGrid[ny][nx] = { type: 'steam', updated: true, lifetime: 0, temp: 100 };
+                                            newGrid[y][x] = { type: 'empty', updated: true, lifetime: 0, temp: cell.temp };
+                                        } else if (neighbor.type === 'ice' && Math.random() > 0.9) {
+                                            newGrid[ny][nx] = { type: 'water', updated: true, lifetime: 0, temp: 10 };
+                                        } else if (neighbor.type === 'glass') {
+                                            // Heat up glass - track temperature
+                                            newGrid[ny][nx] = { ...neighbor, updated: true, temp: Math.min(neighbor.temp + 5, 1500) };
+                                            // Glass melts into lava at high temperature
+                                            if (newGrid[ny][nx].temp > 1200 && Math.random() > 0.95) {
+                                                newGrid[ny][nx] = { type: 'lava', updated: true, lifetime: 0, temp: 1200 };
+                                            }
+                                        } else if (neighbor.type === 'sand' && Math.random() > 0.98) {
+                                            // Super heated sand can become glass
+                                            newGrid[ny][nx] = { type: 'glass', updated: true, lifetime: 0, temp: 900 };
+                                        } else if (neighbor.type === 'dirt' && Math.random() > 0.95) {
+                                            // Dirt burns slowly and can become sand
+                                            newGrid[ny][nx] = { type: 'sand', updated: true, lifetime: 0, temp: 400 };
+                                        } else if (neighbor.type === 'gunpowder' && Math.random() > 0.7) {
+                                            // Gunpowder explodes
+                                            for (let ey = -2; ey <= 2; ey++) {
+                                                for (let ex = -2; ex <= 2; ex++) {
+                                                    const eny = ny + ey, enx = nx + ex;
+                                                    if (eny >= 0 && eny < GRID_HEIGHT && enx >= 0 && enx < GRID_WIDTH) {
+                                                        if (ex * ex + ey * ey <= 4) {
+                                                            newGrid[eny][enx] = { type: 'fire', updated: true, lifetime: 20, temp: 1000 };
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            newGrid[y][x] = { ...cell, updated: true };
+                        }
+                        continue;
+                    }
+
+                    // Lava behavior - ignites things and melts
+                    if (cell.type === 'lava') {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const ny = y + dy, nx = x + dx;
+                                if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
+                                    const neighbor = grid[ny][nx];
+                                    const neighborMat = MATERIALS[neighbor.type];
+                                    
+                                    if (neighborMat.flammable && Math.random() > 0.95) {
+                                        newGrid[ny][nx] = { type: 'fire', updated: true, lifetime: 50, temp: 800 };
+                                    } else if (neighbor.type === 'water' && Math.random() > 0.9) {
+                                        newGrid[ny][nx] = { type: 'stone', updated: true, lifetime: 0, temp: 400 };
+                                        newGrid[y][x] = { type: 'stone', updated: true, lifetime: 0, temp: 400 };
+                                    } else if (neighbor.type === 'ice') {
+                                        newGrid[ny][nx] = { type: 'steam', updated: true, lifetime: 0, temp: 100 };
+                                    } else if (neighbor.type === 'glass' && Math.random() > 0.85) {
+                                        // Lava melts glass and creates more lava!
+                                        newGrid[ny][nx] = { type: 'lava', updated: true, lifetime: 0, temp: 1200 };
+                                    } else if (neighbor.type === 'sand' && Math.random() > 0.92) {
+                                        // Lava can fuse with sand to create more lava
+                                        newGrid[ny][nx] = { type: 'lava', updated: true, lifetime: 0, temp: 1200 };
+                                    } else if (neighbor.type === 'stone' && Math.random() > 0.98) {
+                                        // Lava can slowly melt stone back into lava
+                                        newGrid[ny][nx] = { type: 'lava', updated: true, lifetime: 0, temp: 1200 };
+                                    } else if (neighbor.type === 'metal' && Math.random() > 0.95) {
+                                        // Metal melts into lava
+                                        newGrid[ny][nx] = { type: 'lava', updated: true, lifetime: 0, temp: 1400 };
+                                    } else if (neighbor.type === 'dirt' && Math.random() > 0.93) {
+                                        // Dirt becomes molten
+                                        newGrid[ny][nx] = { type: 'lava', updated: true, lifetime: 0, temp: 1000 };
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Water interactions
+                    if (cell.type === 'water') {
+                        // Water + Dirt = Mud
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const ny = y + dy, nx = x + dx;
+                                if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
+                                    if (grid[ny][nx].type === 'dirt' && Math.random() > 0.95) {
+                                        newGrid[ny][nx] = { type: 'mud', updated: true, lifetime: 0, temp: cell.temp };
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Acid behavior - dissolves most materials
+                    if (cell.type === 'acid') {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const ny = y + dy, nx = x + dx;
+                                if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
+                                    const neighbor = grid[ny][nx];
+                                    const neighborMat = MATERIALS[neighbor.type];
+                                    
+                                    if (!neighborMat.indestructible && neighbor.type !== 'empty' && 
+                                        neighbor.type !== 'acid' && neighbor.type !== 'glass' && 
+                                        neighbor.type !== 'metal' && Math.random() > 0.95) {
+                                        
+                                        // Organic materials create gas when dissolved
+                                        if (neighbor.type === 'plant' || neighbor.type === 'wood' || neighbor.type === 'seed') {
+                                            newGrid[ny][nx] = { type: 'gas', updated: true, lifetime: 0, temp: neighbor.temp };
+                                        } else {
+                                            newGrid[ny][nx] = { type: 'empty', updated: true, lifetime: 0, temp: neighbor.temp };
+                                        }
+                                    }
+                                    
+                                    // Acid + Water = Diluted (becomes water)
+                                    if (neighbor.type === 'water' && Math.random() > 0.97) {
+                                        newGrid[y][x] = { type: 'water', updated: true, lifetime: 0, temp: cell.temp };
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Steam behavior - rises and condenses
+                    if (cell.type === 'steam') {
+                        if (Math.random() > 0.02 && cell.temp < 50) {
+                            newGrid[y][x] = { type: 'water', updated: true, lifetime: 0, temp: 20 };
+                            continue;
+                        }
+                        if (y > 0 && newGrid[y - 1][x].type === 'empty' && Math.random() > 0.1) {
+                            newGrid[y - 1][x] = { ...cell, updated: true };
+                            newGrid[y][x] = { type: 'empty', updated: true, lifetime: 0, temp: cell.temp };
+                            continue;
+                        }
+                        // Drift sideways
+                        const dir = Math.random() > 0.5 ? 1 : -1;
+                        if (x + dir >= 0 && x + dir < GRID_WIDTH && newGrid[y][x + dir].type === 'empty' && Math.random() > 0.3) {
+                            newGrid[y][x + dir] = { ...cell, updated: true };
+                            newGrid[y][x] = { type: 'empty', updated: true, lifetime: 0, temp: cell.temp };
+                            continue;
+                        }
+                        newGrid[y][x] = { ...cell, updated: true };
+                        continue;
+                    }
+                    
+                    // Saltwater evaporation leaves salt behind
+                    if (cell.type === 'saltwater' && cell.temp > 100 && Math.random() > 0.98) {
+                        newGrid[y][x] = { type: 'salt', updated: true, lifetime: 0, temp: cell.temp };
+                        // Create steam above
+                        if (y > 0 && newGrid[y - 1][x].type === 'empty') {
+                            newGrid[y - 1][x] = { type: 'steam', updated: true, lifetime: 0, temp: 100 };
+                        }
+                        continue;
+                    }
+
+                    // Gas behavior - rises quickly
+                    if (cell.type === 'gas') {
+                        if (y > 0 && newGrid[y - 1][x].type === 'empty' && Math.random() > 0.05) {
+                            newGrid[y - 1][x] = { ...cell, updated: true };
+                            newGrid[y][x] = { type: 'empty', updated: true, lifetime: 0, temp: cell.temp };
+                            continue;
+                        }
+                        // Drift
+                        const dir = Math.random() > 0.5 ? 1 : -1;
+                        if (x + dir >= 0 && x + dir < GRID_WIDTH && newGrid[y][x + dir].type === 'empty') {
+                            newGrid[y][x + dir] = { ...cell, updated: true };
+                            newGrid[y][x] = { type: 'empty', updated: true, lifetime: 0, temp: cell.temp };
+                            continue;
+                        }
+                        newGrid[y][x] = { ...cell, updated: true };
+                        continue;
+                    }
+
+                    // Ice melting
+                    if (cell.type === 'ice' && cell.temp > 32) {
+                        newGrid[y][x] = { type: 'water', updated: true, lifetime: 0, temp: cell.temp };
+                        continue;
+                    }
+
+                    // Water freezing
+                    if (cell.type === 'water' && cell.temp < 0) {
+                        newGrid[y][x] = { type: 'ice', updated: true, lifetime: 0, temp: cell.temp };
+                        continue;
+                    }
+                    
+                    // Concrete hardens over time when touching water
+                    if (cell.type === 'concrete') {
+                        let touchingWater = false;
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const ny = y + dy, nx = x + dx;
+                                if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
+                                    if (grid[ny][nx].type === 'water' || grid[ny][nx].type === 'saltwater') {
+                                        touchingWater = true;
+                                    }
+                                }
+                            }
+                        }
+                        if (touchingWater && Math.random() > 0.99) {
+                            newGrid[y][x] = { type: 'stone', updated: true, lifetime: 0, temp: cell.temp };
+                            continue;
+                        }
+                    }
+                    
+                    // Mud dries into dirt
+                    if (cell.type === 'mud' && cell.temp > 50 && Math.random() > 0.99) {
+                        newGrid[y][x] = { type: 'dirt', updated: true, lifetime: 0, temp: cell.temp };
+                        continue;
+                    }
+
+                    // Salt dissolving in water
+                    if (cell.type === 'salt') {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const ny = y + dy, nx = x + dx;
+                                if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
+                                    if (grid[ny][nx].type === 'water' && Math.random() > 0.9) {
+                                        newGrid[y][x] = { type: 'saltwater', updated: true, lifetime: 0, temp: cell.temp };
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Seed growing into plant - needs dirt and water
+                    if (cell.type === 'seed') {
+                        let touchingWater = false;
+                        let touchingDirt = false;
+                        let onDirt = false;
+                        
+                        // Check if on dirt
+                        if (y < GRID_HEIGHT - 1 && grid[y + 1][x].type === 'dirt') {
+                            onDirt = true;
+                        }
+                        
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const ny = y + dy, nx = x + dx;
+                                if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
+                                    if (grid[ny][nx].type === 'water' || grid[ny][nx].type === 'saltwater') {
+                                        touchingWater = true;
+                                    }
+                                    if (grid[ny][nx].type === 'dirt') {
+                                        touchingDirt = true;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Seed grows into a tree structure if on dirt with water nearby
+                        if (onDirt && touchingWater && touchingDirt && Math.random() > 0.97) {
+                            // Create a small tree structure
+                            const treeHeight = 4 + Math.floor(Math.random() * 3);
+                            
+                            // Trunk
+                            for (let ty = 0; ty < treeHeight; ty++) {
+                                if (y - ty >= 0 && grid[y - ty][x].type === 'empty') {
+                                    newGrid[y - ty][x] = { type: 'wood', updated: true, lifetime: 0, temp: cell.temp };
+                                }
+                            }
+                            
+                            // Leaves/foliage at top
+                            const topY = y - treeHeight;
+                            if (topY >= 0) {
+                                for (let ly = -2; ly <= 0; ly++) {
+                                    for (let lx = -2; lx <= 2; lx++) {
+                                        const leafY = topY + ly;
+                                        const leafX = x + lx;
+                                        if (leafY >= 0 && leafY < GRID_HEIGHT && leafX >= 0 && leafX < GRID_WIDTH) {
+                                            // Create a circular-ish leaf pattern
+                                            if (lx * lx + ly * ly <= 4 && grid[leafY][leafX].type === 'empty' && Math.random() > 0.3) {
+                                                newGrid[leafY][leafX] = { type: 'plant', updated: true, lifetime: 0, temp: cell.temp };
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Remove the seed
+                            newGrid[y][x] = { type: 'empty', updated: true, lifetime: 0, temp: cell.temp };
+                            continue;
+                        } else if (touchingWater && Math.random() > 0.98) {
+                            // Regular plant growth without dirt
+                            newGrid[y][x] = { type: 'plant', updated: true, lifetime: 0, temp: cell.temp };
+                            continue;
+                        }
+                    }
+
+                    // Plant growing
+                    if (cell.type === 'plant') {
+                        // Plants grow upward
+                        if (Math.random() > 0.99 && y > 0 && grid[y - 1][x].type === 'empty') {
+                            newGrid[y - 1][x] = { type: 'plant', updated: true, lifetime: 0, temp: cell.temp };
+                        }
+                        
+                        // Plants can spread sideways if on dirt and touching water
+                        let touchingWater = false;
+                        let onDirt = false;
+                        
+                        if (y < GRID_HEIGHT - 1 && grid[y + 1][x].type === 'dirt') {
+                            onDirt = true;
+                        }
+                        
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const ny = y + dy, nx = x + dx;
+                                if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
+                                    if (grid[ny][nx].type === 'water' || grid[ny][nx].type === 'saltwater') {
+                                        touchingWater = true;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (onDirt && touchingWater && Math.random() > 0.985) {
+                            // Spread to adjacent empty spaces
+                            const dirs = [[-1, 0], [1, 0], [0, -1]];
+                            const dir = dirs[Math.floor(Math.random() * dirs.length)];
+                            const ny = y + dir[0];
+                            const nx = x + dir[1];
+                            
+                            if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH && grid[ny][nx].type === 'empty') {
+                                newGrid[ny][nx] = { type: 'plant', updated: true, lifetime: 0, temp: cell.temp };
+                            }
+                        }
+                        
+                        newGrid[y][x] = { ...cell, updated: true };
+                        continue;
+                    }
+
+                    // Oil burning creates gas/smoke
+                    if (cell.type === 'oil') {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const ny = y + dy, nx = x + dx;
+                                if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
+                                    if (grid[ny][nx].type === 'fire' && Math.random() > 0.8) {
+                                        // Oil burns into fire and creates gas
+                                        newGrid[y][x] = { type: 'fire', updated: true, lifetime: 50, temp: 900 };
+                                        if (y > 0 && newGrid[y - 1][x].type === 'empty' && Math.random() > 0.5) {
+                                            newGrid[y - 1][x] = { type: 'gas', updated: true, lifetime: 0, temp: 200 };
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Metal conducts heat
+                    if (cell.type === 'metal') {
+                        let hotNeighbors = 0;
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const ny = y + dy, nx = x + dx;
+                                if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
+                                    if (grid[ny][nx].temp > 500) {
+                                        hotNeighbors++;
+                                    }
+                                }
+                            }
+                        }
+                        if (hotNeighbors > 0) {
+                            newGrid[y][x] = { ...cell, updated: true, temp: Math.min(cell.temp + 20, 1500) };
+                        }
+                        // Super hot metal can melt
+                        if (newGrid[y][x].temp > 1400 && Math.random() > 0.99) {
+                            newGrid[y][x] = { type: 'lava', updated: true, lifetime: 0, temp: 1400 };
+                        }
+                    }
+
+                    // Immovable solids
+                    if (material.indestructible || cell.type === 'stone' || cell.type === 'wall' || 
+                        cell.type === 'wood' || cell.type === 'metal' || cell.type === 'glass') {
+                        newGrid[y][x] = { ...cell, updated: true };
+                        continue;
+                    }
+
+                    let moved = false;
+
+                    // Try to fall down
+                    if (y < GRID_HEIGHT - 1) {
+                        const below = newGrid[y + 1][x];
+                        const belowMat = MATERIALS[below.type];
+                        
+                        if (below.type === 'empty' || belowMat.density < material.density) {
+                            newGrid[y + 1][x] = { ...cell, updated: true };
+                            newGrid[y][x] = { ...below, updated: true };
+                            moved = true;
+                        }
+                    }
+
+                    // Liquids spread horizontally
+                    if (!moved && material.state === 'liquid') {
+                        const dir = Math.random() > 0.5 ? 1 : -1;
+                        const newX = x + dir;
+                        
+                        if (newX >= 0 && newX < GRID_WIDTH && y < GRID_HEIGHT - 1) {
+                            const side = newGrid[y + 1][newX];
+                            const sideMat = MATERIALS[side.type];
+                            
+                            if (side.type === 'empty' || sideMat.density < material.density) {
+                                newGrid[y + 1][newX] = { ...cell, updated: true };
+                                newGrid[y][x] = { type: 'empty', updated: true, lifetime: 0, temp: cell.temp };
+                                moved = true;
+                            } else if (newGrid[y][newX].type === 'empty') {
+                                newGrid[y][newX] = { ...cell, updated: true };
+                                newGrid[y][x] = { type: 'empty', updated: true, lifetime: 0, temp: cell.temp };
+                                moved = true;
+                            }
+                        }
+                    }
+
+                    // Powders fall diagonally
+                    if (!moved && material.state === 'powder') {
+                        const dirs = Math.random() > 0.5 ? [-1, 1] : [1, -1];
+                        for (const dir of dirs) {
+                            const newX = x + dir;
+                            if (newX >= 0 && newX < GRID_WIDTH && y < GRID_HEIGHT - 1) {
+                                const diagonal = newGrid[y + 1][newX];
+                                const diagMat = MATERIALS[diagonal.type];
+                                
+                                if (diagonal.type === 'empty' || diagMat.density < material.density) {
+                                    newGrid[y + 1][newX] = { ...cell, updated: true };
+                                    newGrid[y][x] = { type: 'empty', updated: true, lifetime: 0, temp: cell.temp };
+                                    moved = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!moved) {
+                        newGrid[y][x] = { ...cell, updated: true };
+                    }
+                }
+            }
+
+            grid = newGrid;
+        }
+
+        // Render function
+        function render() {
+            const imageData = ctx.createImageData(GRID_WIDTH, GRID_HEIGHT);
+            
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const cell = grid[y][x];
+                    const material = MATERIALS[cell.type];
+                    const idx = (y * GRID_WIDTH + x) * 4;
+                    
+                    // Add slight color variation
+                    const variation = (Math.random() - 0.5) * 20;
+                    imageData.data[idx] = Math.max(0, Math.min(255, material.color[0] + variation));
+                    imageData.data[idx + 1] = Math.max(0, Math.min(255, material.color[1] + variation));
+                    imageData.data[idx + 2] = Math.max(0, Math.min(255, material.color[2] + variation));
+                    imageData.data[idx + 3] = 255;
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+            ctx.imageSmoothingEnabled = false;
+            
+            // Scale up
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = GRID_WIDTH;
+            tempCanvas.height = GRID_HEIGHT;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.putImageData(imageData, 0, 0);
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(tempCanvas, 0, 0, GRID_WIDTH, GRID_HEIGHT, 0, 0, canvas.width, canvas.height);
+        }
+
+        // Mouse handling
+        function getGridPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
+            const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
+            return { x, y };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const pos = getGridPos(e);
+            drawCircle(pos.x, pos.y, brushSize, selectedMaterial);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDrawing) {
+                const pos = getGridPos(e);
+                drawCircle(pos.x, pos.y, brushSize, selectedMaterial);
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDrawing = false;
+        });
+
+        // Touch support
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDrawing = true;
+            const touch = e.touches[0];
+            const pos = getGridPos(touch);
+            drawCircle(pos.x, pos.y, brushSize, selectedMaterial);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (isDrawing) {
+                const touch = e.touches[0];
+                const pos = getGridPos(touch);
+                drawCircle(pos.x, pos.y, brushSize, selectedMaterial);
+            }
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            isDrawing = false;
+        });
+
+        // UI controls
+        document.querySelectorAll('.material-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.material-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedMaterial = btn.dataset.material;
+            });
+        });
+
+        document.getElementById('size-slider').addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value);
+            document.getElementById('size-value').textContent = brushSize;
+        });
+
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            initGrid();
+            broadcastClear();
+        });
+
+        document.getElementById('pause-btn').addEventListener('click', (e) => {
+            isPaused = !isPaused;
+            e.target.textContent = isPaused ? 'Resume' : 'Pause';
+        });
+
+        // Game loop
+        function gameLoop() {
+            updatePhysics();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize and start
+        initGrid();
+        
+        // Try to initialize Discord SDK, fallback to local mode
+        initDiscord().catch(err => {
+            console.log('Running in local mode:', err);
+            isHost = true;
+            updatePlayerCount();
+        });
+        
+        gameLoop();
+
+        // Flush any remaining draw buffer periodically
+        setInterval(() => {
+            if (drawBuffer.length > 0 && discordSdk) {
+                sendMessage({
+                    type: 'DRAW_BATCH',
+                    draws: drawBuffer,
+                    userId: myUserId
+                });
+                drawBuffer = [];
+            }
+        }, 100);
+    </script>
+</body>
+</html>
