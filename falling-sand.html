@@ -130,6 +130,10 @@
             overflow: hidden;
             box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
             background: #87ceeb;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         #canvas {
@@ -137,6 +141,9 @@
             cursor: crosshair;
             image-rendering: pixelated;
             image-rendering: crisp-edges;
+            width: 100%;
+            height: auto;
+            max-width: 800px;
         }
 
         #brush-size {
@@ -617,14 +624,33 @@
                                         } else if (neighbor.type === 'dirt' && Math.random() > 0.95) {
                                             // Dirt burns slowly and can become sand
                                             newGrid[ny][nx] = { type: 'sand', updated: true, lifetime: 0, temp: 400 };
-                                        } else if (neighbor.type === 'gunpowder' && Math.random() > 0.7) {
-                                            // Gunpowder explodes
-                                            for (let ey = -2; ey <= 2; ey++) {
-                                                for (let ex = -2; ex <= 2; ex++) {
+                                        } else if (neighbor.type === 'gunpowder' && Math.random() > 0.6) {
+                                            // MASSIVE GUNPOWDER EXPLOSION!
+                                            const explosionRadius = 5;
+                                            for (let ey = -explosionRadius; ey <= explosionRadius; ey++) {
+                                                for (let ex = -explosionRadius; ex <= explosionRadius; ex++) {
                                                     const eny = ny + ey, enx = nx + ex;
                                                     if (eny >= 0 && eny < GRID_HEIGHT && enx >= 0 && enx < GRID_WIDTH) {
-                                                        if (ex * ex + ey * ey <= 4) {
-                                                            newGrid[eny][enx] = { type: 'fire', updated: true, lifetime: 20, temp: 1000 };
+                                                        const dist = Math.sqrt(ex * ex + ey * ey);
+                                                        if (dist <= explosionRadius) {
+                                                            // Center of explosion - complete destruction
+                                                            if (dist < 2) {
+                                                                newGrid[eny][enx] = { type: 'fire', updated: true, lifetime: 40, temp: 2000 };
+                                                            }
+                                                            // Middle ring - fire and destruction
+                                                            else if (dist < 4) {
+                                                                if (Math.random() > 0.3) {
+                                                                    newGrid[eny][enx] = { type: 'fire', updated: true, lifetime: 30, temp: 1500 };
+                                                                } else {
+                                                                    newGrid[eny][enx] = { type: 'empty', updated: true, lifetime: 0, temp: 1000 };
+                                                                }
+                                                            }
+                                                            // Outer ring - scattered fire
+                                                            else {
+                                                                if (Math.random() > 0.5) {
+                                                                    newGrid[eny][enx] = { type: 'fire', updated: true, lifetime: 20, temp: 1000 };
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -648,29 +674,51 @@
                                     const neighbor = grid[ny][nx];
                                     const neighborMat = MATERIALS[neighbor.type];
                                     
-                                    if (neighborMat.flammable && Math.random() > 0.95) {
+                                    if (neighborMat.flammable && Math.random() > 0.97) {
                                         newGrid[ny][nx] = { type: 'fire', updated: true, lifetime: 50, temp: 800 };
                                     } else if (neighbor.type === 'water' && Math.random() > 0.9) {
                                         newGrid[ny][nx] = { type: 'stone', updated: true, lifetime: 0, temp: 400 };
                                         newGrid[y][x] = { type: 'stone', updated: true, lifetime: 0, temp: 400 };
                                     } else if (neighbor.type === 'ice') {
                                         newGrid[ny][nx] = { type: 'steam', updated: true, lifetime: 0, temp: 100 };
-                                    } else if (neighbor.type === 'glass' && Math.random() > 0.85) {
-                                        // Lava melts glass and creates more lava!
+                                    } else if (neighbor.type === 'glass' && Math.random() > 0.92) {
+                                        // Lava melts glass back into lava (rare)
                                         newGrid[ny][nx] = { type: 'lava', updated: true, lifetime: 0, temp: 1200 };
-                                    } else if (neighbor.type === 'sand' && Math.random() > 0.92) {
-                                        // Lava can fuse with sand to create more lava
-                                        newGrid[ny][nx] = { type: 'lava', updated: true, lifetime: 0, temp: 1200 };
-                                    } else if (neighbor.type === 'stone' && Math.random() > 0.98) {
-                                        // Lava can slowly melt stone back into lava
-                                        newGrid[ny][nx] = { type: 'lava', updated: true, lifetime: 0, temp: 1200 };
-                                    } else if (neighbor.type === 'metal' && Math.random() > 0.95) {
-                                        // Metal melts into lava
+                                    } else if (neighbor.type === 'sand' && Math.random() > 0.85) {
+                                        // Lava + Sand = Glass (molten sand becomes glass!)
+                                        newGrid[ny][nx] = { type: 'glass', updated: true, lifetime: 0, temp: 1200 };
+                                    } else if (neighbor.type === 'metal' && Math.random() > 0.98) {
+                                        // Metal melts into lava (very rare)
                                         newGrid[ny][nx] = { type: 'lava', updated: true, lifetime: 0, temp: 1400 };
-                                    } else if (neighbor.type === 'dirt' && Math.random() > 0.93) {
-                                        // Dirt becomes molten
-                                        newGrid[ny][nx] = { type: 'lava', updated: true, lifetime: 0, temp: 1000 };
+                                    } else if (neighbor.type === 'gunpowder' && Math.random() > 0.5) {
+                                        // LAVA TRIGGERS GUNPOWDER EXPLOSION!
+                                        const explosionRadius = 5;
+                                        for (let ey = -explosionRadius; ey <= explosionRadius; ey++) {
+                                            for (let ex = -explosionRadius; ex <= explosionRadius; ex++) {
+                                                const eny = ny + ey, enx = nx + ex;
+                                                if (eny >= 0 && eny < GRID_HEIGHT && enx >= 0 && enx < GRID_WIDTH) {
+                                                    const dist = Math.sqrt(ex * ex + ey * ey);
+                                                    if (dist <= explosionRadius) {
+                                                        if (dist < 2) {
+                                                            newGrid[eny][enx] = { type: 'fire', updated: true, lifetime: 40, temp: 2000 };
+                                                        } else if (dist < 4) {
+                                                            if (Math.random() > 0.3) {
+                                                                newGrid[eny][enx] = { type: 'fire', updated: true, lifetime: 30, temp: 1500 };
+                                                            } else {
+                                                                newGrid[eny][enx] = { type: 'empty', updated: true, lifetime: 0, temp: 1000 };
+                                                            }
+                                                        } else {
+                                                            if (Math.random() > 0.5) {
+                                                                newGrid[eny][enx] = { type: 'fire', updated: true, lifetime: 20, temp: 1000 };
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
+                                    // Removed: stone and dirt melting (too destructive)
+
                                 }
                             }
                         }
