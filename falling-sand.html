@@ -129,7 +129,7 @@
             border-radius: 10px;
             overflow: hidden;
             box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
-            background: #87ceeb;
+            background: #000000;
             width: 100%;
             display: flex;
             justify-content: center;
@@ -492,7 +492,7 @@
 
         // Material types with properties
         const MATERIALS = {
-            empty: { color: [135, 206, 235], density: 0, state: 'gas' },
+            empty: { color: [0, 0, 0], density: 0, state: 'gas' },
             sand: { color: [244, 164, 96], density: 2, state: 'powder' },
             water: { color: [74, 144, 226], density: 1, state: 'liquid', evaporates: true },
             stone: { color: [112, 128, 144], density: 3, state: 'solid' },
@@ -1135,8 +1135,13 @@
         // Mouse handling
         function getGridPos(e) {
             const rect = canvas.getBoundingClientRect();
-            const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
-            const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
+            // Calculate the actual position considering canvas scaling
+            const scaleX = GRID_WIDTH / rect.width;
+            const scaleY = GRID_HEIGHT / rect.height;
+            
+            const x = Math.floor((e.clientX - rect.left) * scaleX);
+            const y = Math.floor((e.clientY - rect.top) * scaleY);
+            
             return { x, y };
         }
 
